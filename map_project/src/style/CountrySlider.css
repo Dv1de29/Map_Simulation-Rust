@@ -1,0 +1,39 @@
+/* Basic container and label styling */
+.slider-container {
+  width: 90%;
+  max-width: 400px;
+  margin: 10px auto;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.slider-label {
+  display: block;
+  font-weight: 500;
+  font-size: 0.75rem;
+  color: #333;
+  text-align: left;
+}
+
+.styled-slider {
+  
+  width: 80%; 
+  height: 5px;
+  background: #eee;
+  outline: none;
+  border-radius: 5px;
+}
+
+.slid{
+  display: flex;
+  align-items: center;
+}
+
+#value_number{
+  width: 20%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.75rem;
+  color: rgb(9, 21, 38);
+  background-color: white;
+}
