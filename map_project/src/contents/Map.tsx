@@ -11,10 +11,6 @@ import init, {MapCalc} from 'map-algorithm-wasm'
 
 
 
-
-
-
-
 type Owner_Value = {
     owner: number,
     cost: number,
@@ -81,6 +77,7 @@ const debounce = (func: Function, delay: number) => {
 // !!!!!!!!!!!!!!!!
 // !!!!!!!!!!!!!!!!
 // !!!!!!!!!!!!!!!!
+// SEE POSIBILITY OF PARARELIZATION OF MAP CALCULATION
 
 
 function Map(){
@@ -120,6 +117,7 @@ function Map(){
 
      ///fecth map + Rust borning of MapObject
     useEffect(() => {
+        let aborted = false;
         let wasm: MapCalc | null = null;
 
         setOwnershipData([])
@@ -130,10 +128,26 @@ function Map(){
 
         const fetchMap = async () => {
             try{
+                // if (mapObject) {
+                //     mapObject.free?.();
+                // }
+            
+                if (aborted) return;
+
                 await init();
+                if (aborted) return;
                 wasm = new MapCalc();
 
                 const data = await getMap(activeMap);
+                if ( aborted ) {
+                    wasm.free?.();
+                    return;
+                } 
+
+                // if (!data || data.length === 0 || !data[0]) {
+                //     console.warn("No valid map data received");
+                //     return;
+                // }
 
                 setMapData(data)
                 setMapRow(data.length)
@@ -146,7 +160,7 @@ function Map(){
                                 "expected:", data.length * data[0].length);
 
                 console.log("before flat – outer length:", data.length);
-console.log("last inner array:", JSON.stringify(data.at(-1)));
+                console.log("last inner array:", JSON.stringify(data.at(-1)));
 
                 // Using RUST
                 wasm.load_data(
@@ -158,18 +172,31 @@ console.log("last inner array:", JSON.stringify(data.at(-1)));
 
                 console.log(data.length * data[0].length)
 
+
+                // if (mapObject && typeof mapObject.free === 'function') {
+                //     try {
+                //         mapObject.free();
+                //     } catch (e) {
+                //         console.warn('Error freeing mapObject:', e);
+                //     }
+                // }
+                
                 setMapObject(wasm)
                 wasm = null
 
             } catch (error){
-                console.log("An error occured in loading map data", error)
+                console.error("An error occured in loading map data", error)
+                wasm?.free?.()
                 setMapData([]);
             }
         }
         fetchMap()
 
         return () => {
-            wasm?.free?.()
+            aborted = true
+            if (mapObject){
+                mapObject.free?.()
+            }
         };
         
     }, [activeMap]);
@@ -321,6 +348,13 @@ console.log("last inner array:", JSON.stringify(data.at(-1)));
     const handleMapClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
 
         if ( capitalLocations.has(activeEmpireId) || searching || !mapObject) return
+        if ( !activeEmpire ) {
+            prompt("No active empire: " + activeEmpireId)
+            return
+        }
+        else{
+            console.log("Active Empire ID: ", activeEmpireId, "Active empire object: ", activeEmpire)
+        }
 
         let canvas = canvasRef.current;
         if (!canvas){
@@ -346,7 +380,7 @@ console.log("last inner array:", JSON.stringify(data.at(-1)));
         const mapGridX = Math.floor(canvasX / tileW);
         const mapGridY = Math.floor(canvasY / tileH);
 
-        console.log(mapGridY, mapGridX)
+        // console.log(mapGridY, mapGridX)
 
         if ( mapGridX < 0 || mapGridY < 0 || mapGridX >= mapCol || mapGridY >= mapRow) return
 
@@ -359,6 +393,7 @@ console.log("last inner array:", JSON.stringify(data.at(-1)));
         // setOwnershipData(prevOwner => {
         //     const newOwner = prevOwner.map(row => [...row])
             
+        //     console.time("TypeScript searchTer")
         //     let distGrid = searchTer(
         //         MapData,
         //         {row: mapGridY, col: mapGridX},
@@ -373,7 +408,7 @@ console.log("last inner array:", JSON.stringify(data.at(-1)));
         //         }
         //     )
 
-        //     console.log(distGrid)
+        //     // console.log(distGrid)
 
         //     let pointsCountry = findNClosestCells(
         //         distGrid,
@@ -381,7 +416,7 @@ console.log("last inner array:", JSON.stringify(data.at(-1)));
         //         MapData
         //     )
 
-        //     console.log(pointsCountry)
+        //     // console.log(pointsCountry)
 
         //     pointsCountry.forEach(cell => {
         //         const currentCls = newOwner[cell.point.row][cell.point.col].cost
@@ -391,52 +426,59 @@ console.log("last inner array:", JSON.stringify(data.at(-1)));
         //             newOwner[cell.point.row][cell.point.col].cost = cell.cost
         //         }
         //     })
+        //     console.timeEnd("TypeScript searchTer")
             
         //     // newOwner[mapGridY][mapGridX] = activeEmpireId
-        //     console.log(newOwner)
+        //     // console.log(newOwner)
         //     return newOwner
         // })
 
+
+
+        // // RUST PART OF FUNCTION
         const terrainKeys = Uint8Array.from([1, 2, 3, 4, 5, 6, 7])
         const terrainCosts = Float64Array.from(
             [
-                activeEmpire ? activeEmpire.settings.water : 0,
-                activeEmpire ? activeEmpire.settings.river : 0,
-                activeEmpire ? activeEmpire.settings.plain : 0,
-                activeEmpire ? activeEmpire.settings.mountain : 0,
-                activeEmpire ? activeEmpire.settings.desert : 0,
-                activeEmpire ? activeEmpire.settings.forest : 0,
-                activeEmpire ? activeEmpire.settings.ice : 0,
+                activeEmpire.settings.water,
+                activeEmpire.settings.river,
+                activeEmpire.settings.plain,
+                activeEmpire.settings.mountain,
+                activeEmpire.settings.desert,
+                activeEmpire.settings.forest,
+                activeEmpire.settings.ice,
             ]
         )
 
-        console.log("Click coordinates { row, col}:", { mapGridY, mapGridX });
-        console.log("Map dimensions:", { mapRow, mapCol });
+        // console.log("Click coordinates { row, col}:", { mapGridY, mapGridX });
+        // console.log("Map dimensions:", { mapRow, mapCol });
+
+
 
         setSearch(true)
-        console.log("ENTERED RUST FUNCTION")
+        console.time("Enter rust search")
+        // console.log("ENTERED RUST FUNCTION")
         const result = mapObject.searchTer(
             mapGridY, 
             mapGridX, 
             activeEmpireId, 
-            activeEmpire ? activeEmpire.settings.size : 0,
+            activeEmpire.settings.size,
             terrainKeys,
             terrainCosts
         )
+        console.timeEnd("Enter rust search")
         setSearch(false)
 
-        console.log(result.costs())
+        // console.log(result.costs())
 
         const costs: number[] = Array.from(result.costs()); // Float64Array -> number[]
         const owner: number[] = Array.from(result.owner()); // Uint8Array   -> number[]
-        console.log("First few ownership values:", owner.slice(0, 10));
-        console.log("First few costs values:", costs.slice(0, 10));
+        // console.log("First few ownership values:", owner.slice(0, 10));
+        // console.log("First few costs values:", costs.slice(0, 10));
         console.log("Expected index for clicked cell:", mapGridY * mapCol + mapGridX);
         console.log("Ownership at clicked cell:", owner[mapGridY * mapCol + mapGridX]);
         console.log("Cost at clicked cell:", costs[mapGridY * mapCol + mapGridX]);
         // console.log(owner)
 
-        // if you want a 2-D matrix matching mapRow × mapCol:
         const newMatrix: { owner: number; cost: number }[][] = [];
         for (let r = 0; r < mapRow; r++) {
             const row: { owner: number; cost: number }[] = [];
@@ -450,7 +492,7 @@ console.log("last inner array:", JSON.stringify(data.at(-1)));
 
         setOwnershipData(newMatrix)
 
-    }, [mapRow, mapCol, activeEmpireId, activeEmpire, capitalLocations, MapData, mapObject, searching])
+    }, [mapRow, mapCol, activeEmpireId, activeEmpire, capitalLocations, mapObject, searching])
 
     return (
         <>

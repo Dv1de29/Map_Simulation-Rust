@@ -4,7 +4,7 @@
 
 use wasm_bindgen::prelude::*;
 use web_sys::console;
-use std::{collections::*, f64::INFINITY, usize};
+use std::{collections::*, usize};
 
 
 mod map_utility;
@@ -16,7 +16,18 @@ use map_utility::{Task, Ix2, MaxHeapElement};
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// REMEMBER THAT I ONLY IMPLEMENTED THE SEACRH_TER FUNCTION AND I NEED TO ALSO ADD THE SIZE OF THE EMPIRE WITH A MINHEAP
+// REMEMBER THAT I ONLY IMPLEMENTED THE SEACRH_TER FUNCTION WITHOUT PENALTIES ADDED, I NEED TO ALSO ADD THE PENALTIES
+// ALSO SEE IF I WANT TO ADD FOREIGN EMPIRE TERRITORY EMPIRE
+
+
+
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// MUST IMPROVE THE ALGORITHM TO AN O(V+E) IF POSSIBLE
 
 
 
@@ -102,11 +113,12 @@ impl MapCalc{
         mapData: Box<[u8]>,
         mapRow: usize,
     ){
-        console::log_1(&format!(
-            "Entered mapData lenght: {}",
-            mapData.len()
-        )
-        .into());
+        // console::log_1(&format!(
+        //     "Entered mapData lenght: {}\nRows: {}",
+        //     mapData.len(),
+        //     mapRow,
+        // )
+        // .into());
 
         self.inner.mapRow = mapRow;
         self.inner.mapCol = mapData.len() / mapRow;  
@@ -127,36 +139,68 @@ impl MapCalc{
         terrainKeys: Vec<u8>,
         terrainCosts: Vec<f64>
     ) -> SearchResult{
+        // console::log_1(&format!(
+        //         "Entered parameters:\n
+        //         startR: {}\nstartC: {}\n
+        //         empireID: {}\n
+        //         n_size: {}\n
 
-        if startR >= self.inner.mapRow || startC >= self.inner.mapCol {
-            return SearchResult::new();  
+        //         Map limits: {}, {}",
+        //         startR,
+        //         startC,
+        //         empireId,
+        //         n_size,
+
+        //         self.inner.mapRow,
+        //         self.inner.mapCol,
+        //     ).into());
+
+
+        // OUT OF BOUNDS ERROR CLAUSE
+        if startR >= self.inner.mapRow || startC >= self.inner.mapCol {  
+            console::log_1(&format!(
+                "EXIT on limit bounds!\nClicked: {}, {}\nMap limits: {},{}",
+                startR,
+                startC,
+                self.inner.mapRow,
+                self.inner.mapCol,
+            ).into());
+            return SearchResult::new();
         }
 
+
+        // WRONG FORMAT FOR KEYS AND COSTS
         if terrainKeys.len() != terrainCosts.len() {
+            console::log_1(&format!(
+                "TerrainKeys X TerrainCosts wrong lenghts {},{}",
+                terrainKeys.len(),
+                terrainCosts.len(),
+            ).into());
             return SearchResult::new();
         }
 
+
+        // EMPIRE ID NULL
         if empireId == 0{
+            console::log_1(&format!(
+                "Empire ID is 0",
+            ).into());
             return SearchResult::new();
         }
 
-        console::log_1(&format!(
-            "Map dimensions {}, {}",
-            &(self.inner.mapRow),
-            &(self.inner.mapCol)
-        )
-            .into());
+        // console::log_1(&format!(
+        //     "Map dimensions {}, {}",
+        //     &(self.inner.mapRow),
+        //     &(self.inner.mapCol)
+        // )
+        //     .into());
 
-        console::log_1(&format!(
-            "Clicked tiles {}, {}",
-            &startR,
-            &startC
-        )
-            .into());
-
-        eprintln!("MapData: {:?}", self.inner.mapData);
-        eprintln!("TerrainKeys: {:?}", terrainKeys);
-        eprintln!("TerrainCosts: {:?}", terrainCosts);
+        // console::log_1(&format!(
+        //     "Clicked tiles {}, {}",
+        //     &startR,
+        //     &startC
+        // )
+        //     .into());
 
 
         let mut cost_tbl: HashMap<u8, f64> = HashMap::new();
@@ -172,6 +216,13 @@ impl MapCalc{
             cost_tbl,
         );
 
+        // console::log_1(&format!(
+        //     "EXITED DJIKSTRA FUNCTION WITH MAP LENGHT: {}\nMAP ROW: {}\n MAPCOL: {}",
+        //     self.inner.mapData.len(),
+        //     self.inner.mapRow,
+        //     self.inner.mapCol,
+        // ).into());
+
 
         SearchResult{
             costs: self.inner.mapCosts.clone(), 
@@ -180,83 +231,7 @@ impl MapCalc{
     }
 }
 
-// impl MapCalcData{
-//     pub fn djikstra(
 
-//         &mut self,
-//         start: Ix2,
-//         empireId: u8,
-//         n_size: usize,
-//         cost_tbl: HashMap<u8, f64>,
-//     ){
-//         println!("Djikstra called with start: ({}, {})", start.r, start.c);
-//         println!("Map size: {} rows, {} cols", self.mapRow, self.mapCol);
-//         println!("Cost table: {:?}", cost_tbl);
-
-//         let start_idx = match self.to_idx(start) {
-//             Some(i) => i,
-//             None => return,
-//         };
-
-
-//         let dirs: [(isize, isize); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
-
-//         let mut pq: VecDeque<Task> = VecDeque::new();
-//         println!("Starting Djikstra from index: {}", start_idx);
-//         self.mapCosts[start_idx] = 0.0;
-//         self.mapOwner[start_idx] = empireId;
-//         let initialTerrian = self.mapData[start_idx];
-//         pq.push_back((0.0, start_idx, initialTerrian));
-
-//         let mut heap: BinaryHeap<MinHeapElement> = BinaryHeap::new();
-
-//         println!("Entering the while loop:");
-
-//         while let Some((cur_cost, cur_idx, cur_terrain)) = pq.pop_front() {
-//             println!("Cur_cost: {}, cur_idx: {}, cur_terrain: {}", cur_cost, cur_idx, cur_terrain);
-//             if cur_cost > self.mapCosts[cur_idx]{
-//                 continue;
-//             }
-
-//             let cur_ix = self.to_ix(cur_idx).unwrap();
-//             for ( dr, dc ) in dirs{
-//                 let nr = cur_ix.r.wrapping_add_signed(dr);
-//                 let nc = cur_ix.c.wrapping_add_signed(dc);
-
-//                 let Some(n_idx) = self.to_idx(Ix2::new(nr, nc)) else {
-//                     continue;
-//                 };
-
-//                 let neibType = self.mapData[n_idx];
-//                 let travel_cost = cost_tbl.get(&neibType).unwrap_or(&f64::INFINITY);
-
-//                 if travel_cost.is_infinite() {
-//                     continue;
-//                 }
-
-//                 let new_cost = cur_cost + travel_cost;
-//                 if new_cost < self.mapCosts[n_idx]{
-//                     self.mapCosts[n_idx] = new_cost;
-//                     // self.mapOwner[n_idx] = empireId;
-//                     heap.push(MinHeapElement { priority: new_cost, index: n_idx });
-
-//                     pq.push_back((new_cost, n_idx, neibType));
-//                 }
-//             }
-//         }
-
-//         // println!("{:?}", heap);
-//         for _ in 1..n_size{
-//             if let Some(popped) = heap.pop(){
-//                 self.mapOwner[popped.index] = empireId;
-//             }
-//             else{
-//                 break;
-//             }
-//         }
-
-//     }
-// }
 
 impl MapCalcData{
     pub fn djikstra(
@@ -267,9 +242,6 @@ impl MapCalcData{
         n_size: usize,
         cost_tbl: HashMap<u8, f64>,
     ){
-        println!("Djikstra called with start: ({}, {})", start.r, start.c);
-        println!("Map size: {} rows, {} cols", self.mapRow, self.mapCol);
-        println!("Cost table: {:?}", cost_tbl);
 
         let start_idx = match self.to_idx(start) {
             Some(i) => i,
@@ -283,7 +255,6 @@ impl MapCalcData{
         let dirs: [(isize, isize); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
 
         let mut pq: VecDeque<Task> = VecDeque::new();
-        println!("Starting Djikstra from index: {}", start_idx);
         self.mapCosts[start_idx] = 0.0;
         self.mapOwner[start_idx] = empireId;
         let initialTerrian = self.mapData[start_idx];
@@ -291,10 +262,8 @@ impl MapCalcData{
 
         let mut heap: BinaryHeap<MaxHeapElement> = BinaryHeap::new();
 
-        println!("Entering the while loop:");
 
         while let Some((cur_cost, cur_idx, cur_terrain)) = pq.pop_front() {
-            println!("Cur_cost: {}, cur_idx: {}, cur_terrain: {}", cur_cost, cur_idx, cur_terrain);
             if cur_cost > empire_costs[cur_idx]{
                 continue;
             }
@@ -330,7 +299,6 @@ impl MapCalcData{
             }
         }
 
-        println!("Empire Costs AUXILIAR: {:?}", empire_costs);
 
         for (index, &cost) in empire_costs.iter().enumerate(){
             if self.mapData[index] == 1 {
@@ -382,7 +350,7 @@ mod tests {
                                                                 .into_boxed_slice();
         map.load_data(mapdata, 5);
 
-        let mut res: SearchResult = map.searchTer(1, 2, 5, 5, vec![1,2,3,4], vec![1.0,1.5,1.3,2.0]);
+        let res: SearchResult = map.searchTer(1, 2, 5, 5, vec![1,2,3,4], vec![1.0,1.5,1.3,2.0]);
 
         println!("{:?}\n\n", res);
 
@@ -390,7 +358,7 @@ mod tests {
         let mapownerres1 = res.owner.clone();
 
 
-        let mut res2 = map.searchTer(1, 1, 3, 8, vec![1,2,3,4], vec![1.0,1.5,1.3,2.0]);
+        let res2 = map.searchTer(1, 1, 3, 8, vec![1,2,3,4], vec![1.0,1.5,1.3,2.0]);
         println!("Res1: {:?}", mapcostsres1);
         println!("Res2: {:?}\n", res2.costs());
         println!("Res1: {:?}", mapownerres1);
